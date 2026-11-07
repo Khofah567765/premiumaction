@@ -36,7 +36,7 @@ jobs:
           pip install requests beautifulsoup4 pillow firebase-admin
 
       # 5. Jalankan premium.py dari folder private
-      - name: Ekstraksi Footybite via premium.py & Push ke Firebase
+      - name: Premium
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           FIREBASE_DATABASE_URL: ${{ secrets.FIREBASE_DATABASE_URL }}
