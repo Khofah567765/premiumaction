@@ -1,4 +1,4 @@
-name: Sync Footybite Premium Streams to Firebase
+name: Sync Premium
 
 on:
   schedule:
