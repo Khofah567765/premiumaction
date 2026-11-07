@@ -1,0 +1,47 @@
+name: Sync Footybite Premium Streams to Firebase
+
+on:
+  schedule:
+    # Otomatis berjalan setiap 30 menit
+    - cron: '*/30 * * * *'
+  workflow_dispatch: # Tombol manual "Run workflow" di GitHub Actions
+
+jobs:
+  sync-premium:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout Repo Caller ini (premiumaction)
+      - name: Checkout Caller Repository
+        uses: actions/checkout@v4
+
+      # 2. Checkout Repo Private yang berisi premium.py & logo_maker.py
+      - name: Checkout Private Core Scraper
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.PRIVATE_REPO_NAME }} # Contoh Secret: Username/premium
+          token: ${{ secrets.GH_PAT }}                 # GitHub Personal Access Token dengan hak akses repo private
+          path: private_core                           # Folder target tempat script ditarik
+
+      # 3. Setup Python
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # 4. Install Dependencies
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests beautifulsoup4 pillow firebase-admin
+
+      # 5. Jalankan premium.py dari folder private
+      - name: Ekstraksi Footybite via premium.py & Push ke Firebase
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_DATABASE_URL: ${{ secrets.FIREBASE_DATABASE_URL }}
+          PREMIUM_CATEGORY_ID: ${{ secrets.PREMIUM_CATEGORY_ID || '-premiumLiveSports' }}
+          PREMIUM_CATEGORY_NAME: ${{ secrets.PREMIUM_CATEGORY_NAME || 'PREMIUM LIVE SPORTS' }}
+          PREMIUM_CATEGORY_ORDER: ${{ secrets.PREMIUM_CATEGORY_ORDER || '3' }}
+        run: python private_core/premium.py
+
