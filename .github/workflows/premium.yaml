@@ -1,4 +1,4 @@
-name: Sync Premium
+name: Sync FCTV Live Sports to Firebase
 
 on:
   schedule:
@@ -6,42 +6,59 @@ on:
     - cron: '*/30 * * * *'
   workflow_dispatch: # Tombol manual "Run workflow" di GitHub Actions
 
+permissions:
+  contents: write
+
 jobs:
   sync-premium:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout Repo Caller ini (premiumaction)
-      - name: Checkout Caller Repository
+      # 1. Checkout Runner Repository (premiumaction)
+      - name: Checkout Runner Repository
         uses: actions/checkout@v4
 
-      # 2. Checkout Repo Private yang berisi premium.py & logo_maker.py
+      # 2. Tarik Script dari Repo Privat menggunakan Secret GH_PAT & PRIVATE_REPO_NAME
       - name: Checkout Private Core Scraper
         uses: actions/checkout@v4
         with:
-          repository: ${{ secrets.PRIVATE_REPO_NAME }} # Contoh Secret: Username/premium
-          token: ${{ secrets.GH_PAT }}                 # GitHub Personal Access Token dengan hak akses repo private
-          path: private_core                           # Folder target tempat script ditarik
+          repository: ${{ secrets.PRIVATE_REPO_NAME }} # Isi secret: Khofah567765/premium
+          token: ${{ secrets.GH_PAT }}                 # GitHub Personal Access Token
+          path: private_core                           # Ditaruh di folder lokal private_core
 
-      # 3. Setup Python
+      # 3. Setup Lingkungan Python
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
 
       # 4. Install Dependencies
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests beautifulsoup4 pillow firebase-admin
+          pip install requests pillow firebase-admin urllib3
 
-      # 5. Jalankan premium.py dari folder private
-      - name: Premium
+      # 5. Jalankan Scraper Privat & Sinkronisasi ke Firebase
+      - name: Ekstraksi Event & Push ke Firebase
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           FIREBASE_DATABASE_URL: ${{ secrets.FIREBASE_DATABASE_URL }}
-          PREMIUM_CATEGORY_ID: ${{ secrets.PREMIUM_CATEGORY_ID || '-premiumLiveSports' }}
-          PREMIUM_CATEGORY_NAME: ${{ secrets.PREMIUM_CATEGORY_NAME || 'PREMIUM LIVE SPORTS' }}
-          PREMIUM_CATEGORY_ORDER: ${{ secrets.PREMIUM_CATEGORY_ORDER || '3' }}
-        run: python private_core/premium.py
+          GITHUB_RAW_BASE: "https://raw.githubusercontent.com/Khofah567765/premiumaction/main"
+        run: |
+          python private_core/premium.py --firebase
 
+      # 6. Simpan Banner Cache ke Repo Runner (Anti-limit CDN & Backup Permanen)
+      - name: Commit & Push Generated Banners
+        run: |
+          mkdir -p logos
+          if [ -d "private_core/logos" ]; then
+            cp -r private_core/logos/* logos/ 2>/dev/null || true
+          fi
+          if [ -f "private_core/banner_cache.json" ]; then
+            cp private_core/banner_cache.json ./banner_cache.json 2>/dev/null || true
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add logos/ banner_cache.json 2>/dev/null || true
+          git diff --staged --quiet || (git commit -m "chore: update event banners [skip ci]" && git push)
